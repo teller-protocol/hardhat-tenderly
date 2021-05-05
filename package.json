@@ -21,7 +21,8 @@
     "test": "mocha --exit",
     "build": "tsc",
     "buidl": "tsc",
-    "watch": "tsc -w"
+    "watch": "tsc -w",
+    "prepare": "yarn build"
   },
   "files": [
     "dist/",
