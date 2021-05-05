@@ -20,8 +20,8 @@ export class Tenderly {
     this.env = bre;
   }
 
-  public async verify(...contracts) {
-    const flatContracts: ContractByName[] = contracts.reduce(
+  public async verify(...contracts: ContractByName[]) {
+    const flatContracts = contracts.reduce<ContractByName[]>(
       (accumulator, value) => accumulator.concat(value),
       []
     );
@@ -40,8 +40,8 @@ export class Tenderly {
     }
   }
 
-  public async push(...contracts) {
-    const flatContracts: ContractByName[] = contracts.reduce(
+  public async push(...contracts: ContractByName[]) {
+    const flatContracts = contracts.reduce<ContractByName[]>(
       (accumulator, value) => accumulator.concat(value),
       []
     );
@@ -78,7 +78,7 @@ export class Tenderly {
     }
   }
 
-  public async persistArtifacts(...contracts) {
+  public async persistArtifacts(...contracts: ContractByName[]) {
     const sourcePaths = await this.env.run("compile:solidity:get-source-paths");
     const sourceNames = await this.env.run(
       "compile:solidity:get-source-names",
@@ -172,7 +172,11 @@ export class Tenderly {
         );
         return null;
       }
-      requestData.contracts[index].networks = {
+      const contractData = requestData.contracts[index];
+      if (typeof contract.customName === "string") {
+        contractData.contractName = contract.customName;
+      }
+      contractData.networks = {
         [chainID]: {
           address: contract.address
         }

@@ -35,8 +35,9 @@ export interface ContractNetwork {
 
 export interface ContractByName {
   name: string;
+  customName?: string;
   address: string;
-  network: string;
+  network?: string;
 }
 
 export interface ApiContract {

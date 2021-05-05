@@ -1,14 +1,14 @@
 import "hardhat/types/config";
 import "hardhat/types/runtime";
 
-import { TenderlyConfig } from "./tenderly/types";
+import { ContractByName, TenderlyConfig } from "./tenderly/types";
 
 declare module "hardhat/types/runtime" {
   export interface HardhatRuntimeEnvironment {
     tenderly: {
-      verify: (...contracts) => Promise<void>;
-      push: (...contracts) => Promise<void>;
-      persistArtifacts: (...contracts) => Promise<void>;
+      verify: (...contracts: ContractByName[]) => Promise<void>;
+      push: (...contracts: ContractByName[]) => Promise<void>;
+      persistArtifacts: (...contracts: ContractByName[]) => Promise<void>;
     };
   }
 }
