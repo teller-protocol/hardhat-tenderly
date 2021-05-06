@@ -1,4 +1,7 @@
 import * as fs from "fs-extra";
+import { DependencyGraph } from "hardhat/internal/solidity/dependencyGraph";
+import { Parser } from "hardhat/internal/solidity/parse";
+import { ResolvedFile, Resolver } from "hardhat/internal/solidity/resolver";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { sep } from "path";
 
@@ -189,62 +192,51 @@ export class Tenderly {
   private async getContracts(
     flatContracts: ContractByName[]
   ): Promise<TenderlyContract[]> {
-    const sourcePaths = await this.env.run("compile:solidity:get-source-paths");
-    const sourceNames = await this.env.run(
-      "compile:solidity:get-source-names",
-      { sourcePaths }
+    const fullyQualifiedNames = await this.env.artifacts.getAllFullyQualifiedNames();
+    const parser = new Parser();
+    const resolver = new Resolver(this.env.config.paths.root, parser);
+    const resolvedFiles = await Promise.all(
+      fullyQualifiedNames.map(sn => resolver.resolveSourceName(sn))
     );
-    const data = await this.env.run("compile:solidity:get-dependency-graph", {
-      sourceNames
-    });
+    const graph = await DependencyGraph.createFromResolvedFiles(
+      resolver,
+      resolvedFiles
+    );
 
-    let contract: ContractByName;
-    const requestContracts: TenderlyContract[] = [];
-    const metadata: Metadata = {
-      compiler: {
-        version: this.env.config.solidity.compilers[0].version
-      },
-      sources: {}
-    };
+    const requestContracts: Map<string, TenderlyContract> = new Map();
+    const addSource = (file: ResolvedFile, contractName?: string) => {
+      contractName =
+        contractName ??
+        file.sourceName
+          .split("/")
+          .slice(-1)[0]
+          .split(".")[0];
 
-    data._resolvedFiles.forEach((resolvedFile, _) => {
-      const sourcePath: string = resolvedFile.sourceName;
-      const name = sourcePath
-        .split("/")
-        .slice(-1)[0]
-        .split(".")[0];
-
-      for (contract of flatContracts) {
-        if (contract.name !== name) {
-          continue;
-        }
-
-        metadata.sources[sourcePath] = {
-          content: resolvedFile.content.rawContent
-        };
-        const visited: Record<string, boolean> = {};
-        resolveDependencies(data, sourcePath, metadata, visited);
+      if (requestContracts.get(contractName)) {
+        return;
       }
-    });
 
-    for (const [key, value] of Object.entries(metadata.sources)) {
-      const name = key
-        .split("/")
-        .slice(-1)[0]
-        .split(".")[0];
-      const contractToPush: TenderlyContract = {
-        contractName: name,
-        source: value.content,
-        sourcePath: key,
+      requestContracts.set(contractName, {
+        contractName,
+        source: file.content.rawContent,
+        sourcePath: file.sourceName,
         networks: {},
         compiler: {
           name: "solc",
           version: this.env.config.solidity?.compilers[0].version!
         }
-      };
-      requestContracts.push(contractToPush);
+      });
+    };
+
+    for (const contract of flatContracts) {
+      const artifact = await this.env.artifacts.readArtifact(contract.name);
+      const file = await resolver.resolveSourceName(artifact.sourceName);
+
+      addSource(file, contract.customName);
+      graph.getDependencies(file).forEach(f => addSource(f));
     }
-    return requestContracts;
+
+    return Array.from(requestContracts.values());
   }
 
   private async getContractData(
