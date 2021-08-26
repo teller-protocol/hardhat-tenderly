@@ -1,4 +1,5 @@
 import * as axios from "axios";
+import { ethers } from 'ethers'
 import fs from "fs";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import * as yaml from "js-yaml";

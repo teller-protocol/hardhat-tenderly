@@ -45,9 +45,9 @@ const extendProvider = (hre: HardhatRuntimeEnvironment): void => {
     .then(_ => {
       hre.tenderly.setNetwork(fork);
       (hre.network.config as HttpNetworkConfig).url = TENDERLY_RPC_BASE + `/fork/${hre.tenderly.network().getFork()}`
-      hre.ethers.provider = new hre.ethers.providers.Web3Provider(
-          hre.tenderly.network()
-      );
+
+      const network = hre.tenderly.network();
+      hre.ethers.provider.send = network.send.bind(network);
     })
     .catch(_ => {
       console.log(
